@@ -1,0 +1,276 @@
+<!doctype html>
+<html>
+<head>
+    <script
+            src="https://code.jquery.com/jquery-3.3.1.min.js"
+            integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+            crossorigin="anonymous"></script>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+            integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+            crossorigin="anonymous"></script>
+    <!-- reference to Leaflet CSS -->
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css"/>
+
+    <!-- reference to Leaflet JavaScript -->
+    <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script>
+
+google.charts.load('current', {packages: ['corechart','bar']});
+google.charts.setOnLoadCallback(init);
+var topChart;
+var btmChart;
+var top10avg;
+var btm10avg;
+var hot10avg;
+var handle;
+var loc;
+var options = {
+           theme: 'maximized',
+           height: '100%',
+           bars: 'horizontal',
+           legend: {position: 'none'},
+           vAxis: { gridlines: { count: 0 }, textPosition: 'out'  },
+           hAxis: { gridlines: { count: 0 }, textPosition: 'none'  },
+           animation: {
+            "startup": true,
+            "duration": 50
+           }
+         };
+
+window.onresize = drawChart
+
+function refresh() {
+
+    if (handle) {
+        handle.abort();
+    }
+
+    $('.spinner-grow').removeClass('d-none')
+    $('.chart').addClass('d-none')
+    getData(function() {
+         $('.chart').removeClass('d-none')
+         $('.spinner-grow').addClass('d-none')
+         drawChart()
+         refreshing = false
+    })
+}
+
+function getData(callback){
+
+  var route = 'api/all'
+  if (window.subj_type !== 'all' && window.subj_type !== undefined) {
+      route = "api/all/" + window.subj_type
+  }
+
+  handle = $.getJSON(route, function (t10b10) {
+        top10avg = t10b10.top10.map(function(row) {
+          return [ row[0], row[2],  row[0], row[0] + "\n" + row[3].toString() + ' tweets, sentiment ' + row[2] ]
+        })
+        btm10avg = t10b10.bottom10.map(function(row) {
+          return [ row[0], row[2],  row[0], row[0] + "\n" + row[3].toString() + ' tweets, sentiment ' + row[2] ]
+        })
+        hot10avg = t10b10.hot10.map(function(row) {
+          return [ row[0], row[2],  row[0], row[0] + "\n" + row[3].toString() + ' tweets, sentiment ' + row[2] ]
+        })
+
+        top10avg.unshift(['Subject', 'Score', { role: 'annotation' }, { role: 'tooltip' }])
+        btm10avg.unshift(['Subject', 'Score', { role: 'annotation' }, { role: 'tooltip' }])
+        hot10avg.unshift(['Subject', 'Score', { role: 'annotation' }, { role: 'tooltip' }])
+
+        window.dataTop = new google.visualization.arrayToDataTable(top10avg);
+        window.dataHot = new google.visualization.arrayToDataTable(hot10avg);
+        window.dataBtm = new google.visualization.arrayToDataTable(btm10avg);
+
+        if(callback !== undefined) {
+            callback()
+        }
+
+        handle = undefined
+  })
+}
+
+function init() {
+
+    topChart = new google.visualization.BarChart(document.getElementById('topChart'));
+    hotChart = new google.visualization.BarChart(document.getElementById('hotChart'));
+    btmChart = new google.visualization.BarChart(document.getElementById('btmChart'));
+
+    refresh();
+
+    google.visualization.events.addListener(topChart, 'click', function(e) {
+        clickHandler(e, top10avg)
+    });
+    google.visualization.events.addListener(btmChart, 'click', function(e) {
+        clickHandler(e, btm10avg)
+    });
+    google.visualization.events.addListener(hotChart, 'click', function(e) {
+        clickHandler(e, hot10avg)
+    });
+
+}
+
+function clickHandler(e, data) {
+  var target = e.targetID.split("#");
+  if(target.length == 3){
+    var row = parseInt(target[2]);
+    text = data[row+1][0]
+
+    if(text.startsWith("@")) {
+        window.open("https://twitter.com/" + text.substring(1))
+    } else if (text.startsWith("#")) {
+        window.open("https://twitter.com/search?q=%23" + text.substring(1))
+    } else {
+        window.open("https://twitter.com/search?q=" + text)
+    }
+  }
+}
+
+function drawChart() {
+
+    if (window.dataTop === undefined) {
+      getData();
+    }
+
+    topChart.draw(window.dataTop, options); // google.charts.Bar.convertOptions(options));
+    hotChart.draw(window.dataHot, options); // google.charts.Bar.convertOptions(options));
+    btmChart.draw(window.dataBtm, options); //  google.charts.Bar.convertOptions(options));
+}
+
+    </script>
+    <style>
+    #map {
+        width: 100%;
+        height:300px;
+    }
+
+    .card-body {
+        min-height: 470px;
+    }
+
+    .chart {
+      width: auto;
+      min-height: 450px;
+    }
+    .row {
+      margin:0 !important;
+    }
+
+    </style>
+</head>
+<title>SiteGeist</title>
+<body>
+<div class="d-flex flex-column flex-md-row align-items-center p-3 px-md-4 mb-3 bg-white border-bottom shadow-sm">
+    <div class="pricing-header px-3 py-3 pt-md-5 pb-md-4 mx-auto text-center">
+        <h1 class="display-4">👻 SiteGeist</h1>
+        <p class="lead">Real-time analysis of the subjects generating the most positive and most negative reactions in a
+            particular area, over the last 24 hours. Powered by AI.</p>
+    </div>
+</div>
+
+<div id="map" class="mb-4"></div>
+<div class="container">
+    <div class="row align-items-center justify-content-center">
+        <div id="selector" class="btn-group btn-group-toggle mb-4" data-toggle="buttons">
+            <label class="btn btn-secondary active">
+                <input type="radio" name="options" id="all" autocomplete="off" checked> All
+            </label>
+            <label class="btn btn-secondary">
+                <input type="radio" name="options" id="word" autocomplete="off"> Words
+            </label>
+            <label class="btn btn-secondary">
+                <input type="radio" name="options" id="hashtag" autocomplete="off"> Hashtags
+            </label>
+            <label class="btn btn-secondary">
+                <input type="radio" name="options" id="mention" autocomplete="off"> Mentions
+            </label>
+        </div>
+    </div>
+    <div class="row">
+        <div class="clearfix"></div>
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header text-center">
+                    <h4 class="my-0 font-weight-normal">Negative</h4>
+                </div>
+                <div class="card-body text-center">
+                    <div class="spinner-grow text-primary d-none" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                    <div id="btmChart" class="chart"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header text-center">
+                    <h4 class="my-0 font-weight-normal">Hot</h4>
+                </div>
+                <div class="card-body text-center">
+                    <div class="spinner-grow text-primary d-none" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                    <div id="hotChart" class="chart"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header text-center">
+                    <h4 class="my-0 font-weight-normal">Positive</h4>
+                </div>
+                <div class="card-body text-center">
+                    <div class="spinner-grow text-primary d-none" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                    <div id="topChart" class="chart"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+
+    $.getJSON('/api/loc', function(loc) {
+        // create map object, tell it to live in 'map' div and give initial latitude, longitude, zoom values
+        // pass option to turn scroll wheel zoom off
+
+        center = [Math.min(loc[0][0], loc[1][0]) + Math.abs(loc[0][0]-loc[1][0])/2, Math.min(loc[0][1], loc[1][1]) + Math.abs(loc[0][1]-loc[1][1])/2]
+
+        var map = L.map('map',{scrollWheelZoom:false}).setView(center, 15);
+        map.fitBounds(loc)
+
+        // add base map tiles from OpenStreetMap and attribution info to 'map' div
+        L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // add rectangle passing bounds and some basic styles
+        L.rectangle(loc, {color: "blue", weight: 1}).addTo(map);
+
+
+
+    })
+    $('#selector .btn').on('click', function() {
+        window.subj_type = $(this).children('input').attr('id')
+        refresh()
+    })
+
+
+
+    </script>
+</div>
+
+<div class="pricing-header px-3 py-3 pt-md-5 pb-md-4 mx-auto text-center">
+    <h1 class="display-3">How it works</h1>
+</div>
+
+<footer class="pt-4 my-md-5 pt-md-5 border-top">
+    <div class="row">
+        <small class="text-center text-muted">© Sourcepulp 2019</small>
+    </div>
+</footer>
+</body>
+</html>

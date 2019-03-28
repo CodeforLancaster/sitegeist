@@ -1,0 +1,5 @@
+schedule
+Flask_Injector==0.11.0
+Flask==0.11.1
+pycorenlp==0.3.0
+python_twitter==3.5
