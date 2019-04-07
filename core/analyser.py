@@ -1,61 +1,65 @@
 # -*- coding: utf-8 -*-
 import threading
-
 import twitter
-from pycorenlp import StanfordCoreNLP
+import spacy
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from twitter import TwitterError
-
 from core.domain import *
 
 
-def compute_sentiment(res):
-    snt = 0  # Neutral
-
-    desc = ''
-
-    for s in res["sentences"]:
-        strength = int(s["sentimentValue"])
-
-        desc += '(%d) ' % (strength - 2)
-
-        snt = snt + (strength - 2)
-
-    return snt, desc
-
-
 class TweetAnalyser:
-    def __init__(self, lat1, long1, lat2, long2, consumer_key, consumer_secret, access_token_key, access_token_secret,
-                 nlp_url='http://localhost:9000'):
+    def __init__(self, lat1, long1, lat2, long2, consumer_key, consumer_secret, access_token_key, access_token_secret):
 
         self.access_token_secret = access_token_secret
         self.access_token_key = access_token_key
         self.consumer_secret = consumer_secret
         self.consumer_key = consumer_key
-        self.nlp_url = nlp_url
         self.locations = ["%f,%f" % (long1, lat1), "%f,%f" % (long2, lat2)]
         self.locations_arr = [[lat1, long1], [lat2, long2]]
-
-        print("Starting analyser daemon...")
-        self.init()
-        thread = threading.Thread(target=self.run, args=())
-        thread.daemon = True  # Daemonize thread
-        thread.start()
-
-    def init(self):
-        self.nlp = StanfordCoreNLP(self.nlp_url)
+        self.nlp = spacy.load("en_core_web_sm")
+        self.sentiment = SentimentIntensityAnalyzer()
+        self.url_re = re.compile(r'http\S+')
         self.db = Database()
-
         self.users = self.db.users
         self.tweets = self.db.tweets
         self.subjects = self.db.subjects
 
         self.api = twitter.Api(consumer_key=self.consumer_key,
-                       consumer_secret=self.consumer_secret,
-                       access_token_key=self.access_token_key,
-                       access_token_secret=self.access_token_secret,
-                       cache=None,
-                       tweet_mode='extended')
+                               consumer_secret=self.consumer_secret,
+                               access_token_key=self.access_token_key,
+                               access_token_secret=self.access_token_secret,
+                               cache=None,
+                               tweet_mode='extended')
+        thread = threading.Thread(target=self.run, args=())
+        thread.daemon = True  # Daemonize thread
+        thread.start()
 
+    def compute_sentiment(self, res):
+        """
+        TODO This could be a bit more nuanced. Rework later. Workaround to fit current metric
+        :param res:
+        :return:
+        """
+        snt = 0  # Neutral
+
+        desc = ''
+
+        for s in res.sents:
+            sentiment = self.sentiment.polarity_scores(s.text)
+            if sentiment['compound'] > 0.5:
+                strength = 4
+            elif sentiment['compound'] > 0.1:
+                strength = 3
+            elif sentiment['compound'] > -0.1:
+                strength = 2
+            else:
+                strength = 1
+
+            desc += '(%d) ' % (strength - 2)
+
+            snt = snt + (strength - 2)
+
+        return snt, desc
 
     # This loads the most comprehensive text portion of the tweet
     # Where "data" is an individual tweet, treated as JSON / dict
@@ -95,17 +99,14 @@ class TweetAnalyser:
             return
 
         text = self.get_text(tweet)
-        res = self.annotate(text)
 
-        if type(res) is str:
-            print('Timed out.')
-            return None
+        res = self.annotate(text)
 
         uname = tweet['user']['name']
 
         user = self.get_user(uname)
 
-        sentiment, desc = compute_sentiment(res)
+        sentiment, desc = self.compute_sentiment(res)
 
         t = self.tweets.create(
             Tweet(_id=tweet['id'], user=user, sentiment=sentiment, tweet=text, time=tweet['created_at']))
@@ -131,7 +132,7 @@ class TweetAnalyser:
                 text = self.get_text(parent)
 
                 resp = self.annotate(text)
-                psen, desc = compute_sentiment(resp)
+                psen, desc = self.compute_sentiment(resp)
                 tp = self.tweets.create(
                     Tweet(_id=tid, user=self.get_user(parent.user.screen_name), sentiment=psen,
                           tweet=text,
@@ -171,22 +172,16 @@ class TweetAnalyser:
         return user
 
     def annotate(self, text):
-        return self.nlp.annotate(text,
-                                 properties={
-                                     'annotators': 'tokenize,ssplit,lemma,parse,sentiment,pos,ner',
-                                     'outputFormat': 'json',
-                                     'timeout': 1500,
-                                 })
+
+        return self.nlp(text)
 
     def extract_subjects(self, res, tweet):
-        for sentence in res['sentences']:
-            entities = [x['text'] for x in sentence['entitymentions']]
+        entities = [e.text.strip() for e in res.ents if not e.text.strip().startswith('http')]
 
-            for entity in entities:
-                if entity.startswith('#') or entity.startswith('@'):
-                    continue
-
-                self.subjects.create(entity, tweet, SubjectType.WORD)
+        for entity in entities:
+            if entity.startswith('#') or entity.startswith('@'):
+                continue
+            self.subjects.create(entity, tweet, SubjectType.WORD)
 
         hashtags, mentions = tweet.hashtags_and_mentions()
 
