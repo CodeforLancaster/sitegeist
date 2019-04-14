@@ -172,19 +172,19 @@ class TweetAnalyser:
     def extract_subjects(self, res, tweet):
         entities = [e.text.strip() for e in res.ents if (len(e.text.strip()) > 1) & ('http' not in e.text.strip())]
         print('Entities: {}'.format(entities))
-        chunks = [c.text.strip() for c in res.noun_chunks if
+        phrases = [c.text.strip() for c in res.noun_chunks if
                   (c.text.strip() not in entities) &
                   (len(c.text.strip()) > 1) &
                   (c.root.pos_ in pos_include) &
                   ('http' not in c.text.strip())]
-        print('Chunks: {}'.format(chunks))
-        entities += chunks
+        print('Phrases: {}'.format(phrases))
         for entity in entities:
             if entity.startswith('#') or entity.startswith('@'):
                 continue
-            self.subjects.create(entity, tweet, SubjectType.WORD)
+            self.subjects.create(entity, tweet, SubjectType.ENTITY)
 
         hashtags, mentions = tweet.hashtags_and_mentions()
 
         [self.subjects.create(hashtag, tweet, SubjectType.HASHTAG) for hashtag in hashtags]
         [self.subjects.create(mention, tweet, SubjectType.MENTION) for mention in mentions]
+        [self.subjects.create(phrase, tweet, SubjectType.PHRASE) for phrase in phrases]

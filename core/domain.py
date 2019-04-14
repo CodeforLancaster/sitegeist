@@ -130,10 +130,10 @@ class SubjectType(Enum):
     draw this distinction so we can investigate mentions, hashtags and words separately.
     """
 
-    WORD = 0
+    ENTITY = 0
     HASHTAG = 1
     MENTION = 2
-
+    PHRASE = 3
     ALL = -1
 
 
