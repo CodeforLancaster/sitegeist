@@ -46,20 +46,10 @@ class TweetAnalyser:
 
         for s in res.sents:
             sentiment = self.sentiment.polarity_scores(s.text)
-            if sentiment['compound'] > 0.7:
-                strength = 2
-            elif sentiment['compound'] > 0.3:
-                strength = 1
-            elif sentiment['compound'] > -0.3:
-                strength = 0
-            elif sentiment['compound'] > -0.7:
-                strength = -1
-            else:
-                strength = -2
 
-            desc += '(%d) ' % strength
+            desc += '(%.2f) ' % sentiment['compound']
 
-            snt += strength
+            snt += sentiment['compound']
 
         return snt, desc
 
@@ -163,7 +153,7 @@ class TweetAnalyser:
                 continue
 
             print('@' + entity.user.name + ': ' + self.get_text(tweet))
-            print("Sentiment = %d" % entity.sentiment)
+            print("Sentiment = %.2f" % entity.sentiment)
 
     def get_user(self, uname):
         if not self.users.exists(uname):

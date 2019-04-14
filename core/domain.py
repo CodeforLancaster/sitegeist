@@ -162,7 +162,7 @@ class Tweet(Entity):
     Active record representing a tweet.
     """
 
-    sql = '''CREATE TABLE IF NOT EXISTS tweets (id INTEGER PRIMARY KEY, user_id INTEGER, tweet VARCHAR, sentiment INTEGER, 
+    sql = '''CREATE TABLE IF NOT EXISTS tweets (id INTEGER PRIMARY KEY, user_id INTEGER, tweet VARCHAR, sentiment REAL, 
     time DATETIME, FOREIGN KEY (user_id) REFERENCES users(id)); '''
 
     def __init__(self, user: User, tweet, sentiment=None, _id=None, time=None):
