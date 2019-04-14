@@ -1,11 +1,4 @@
 import argparse
-import os
-import platform
-import subprocess
-import threading
-import urllib.request
-import zipfile
-
 import api
 import core.analyser as analyser
 from core.domain import Database
