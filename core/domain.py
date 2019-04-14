@@ -133,6 +133,7 @@ class SubjectType(Enum):
     WORD = 0
     HASHTAG = 1
     MENTION = 2
+
     ALL = -1
 
 
