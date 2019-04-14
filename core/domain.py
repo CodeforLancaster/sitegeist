@@ -130,9 +130,10 @@ class SubjectType(Enum):
     draw this distinction so we can investigate mentions, hashtags and words separately.
     """
 
-    WORD = 0
+    ENTITY = 0
     HASHTAG = 1
     MENTION = 2
+    PHRASE = 3
     ALL = -1
 
 
@@ -162,7 +163,7 @@ class Tweet(Entity):
     Active record representing a tweet.
     """
 
-    sql = '''CREATE TABLE IF NOT EXISTS tweets (id INTEGER PRIMARY KEY, user_id INTEGER, tweet VARCHAR, sentiment INTEGER, 
+    sql = '''CREATE TABLE IF NOT EXISTS tweets (id INTEGER PRIMARY KEY, user_id INTEGER, tweet VARCHAR, sentiment REAL, 
     time DATETIME, FOREIGN KEY (user_id) REFERENCES users(id)); '''
 
     def __init__(self, user: User, tweet, sentiment=None, _id=None, time=None):
@@ -181,10 +182,12 @@ class Tweet(Entity):
         self.tweet = tweet
         self.sentiment = sentiment
         self.time = time
+        self.hash_re = re.compile(r'\s([#][\w_-]+)')
+        self.mention_re = re.compile(r'\s([@][\w_-]+)')
 
     def hashtags_and_mentions(self):
-        hashtags = re.findall('([#][\w_-]+)', self.tweet)
-        mentions = re.findall('([@][\w_-]+)', self.tweet)
+        hashtags = self.hash_re.findall(self.tweet)
+        mentions = self.mention_re.findall(self.tweet)
 
         return hashtags, mentions
 
