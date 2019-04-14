@@ -46,18 +46,20 @@ class TweetAnalyser:
 
         for s in res.sents:
             sentiment = self.sentiment.polarity_scores(s.text)
-            if sentiment['compound'] > 0.5:
-                strength = 4
-            elif sentiment['compound'] > 0.1:
-                strength = 3
-            elif sentiment['compound'] > -0.1:
+            if sentiment['compound'] > 0.7:
                 strength = 2
-            else:
+            elif sentiment['compound'] > 0.3:
                 strength = 1
+            elif sentiment['compound'] > -0.3:
+                strength = 0
+            elif sentiment['compound'] > -0.7:
+                strength = -1
+            else:
+                strength = -2
 
-            desc += '(%d) ' % (strength - 2)
+            desc += '(%d) ' % strength
 
-            snt = snt + (strength - 2)
+            snt += strength
 
         return snt, desc
 
@@ -176,8 +178,8 @@ class TweetAnalyser:
         return self.nlp(text)
 
     def extract_subjects(self, res, tweet):
-        entities = [e.text.strip() for e in res.ents if not e.text.strip().startswith('http')]
-
+        entities = [e.text.strip() for e in res.ents if (len(e.text.strip()) > 1) & (not e.text.strip().startswith('http'))]
+        print('Entities: {}'.format(entities))
         for entity in entities:
             if entity.startswith('#') or entity.startswith('@'):
                 continue
