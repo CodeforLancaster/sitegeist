@@ -117,14 +117,15 @@ function clickHandler(e, data) {
   var target = e.targetID.split("#");
   if(target.length == 3){
     var row = parseInt(target[2]);
-    text = data[row+1][0]
+    text = data[row+1][0];
+    search_location = "%20near%3A\"Lancaster%2C%20England\"%20within%3A15mi&src=typd";
 
     if(text.startsWith("@")) {
         window.open("https://twitter.com/" + text.substring(1))
     } else if (text.startsWith("#")) {
-        window.open("https://twitter.com/search?q=%23" + text.substring(1))
+        window.open("https://twitter.com/search?q=%23" + text.substring(1) + search_location)
     } else {
-        window.open("https://twitter.com/search?q=" + text)
+        window.open("https://twitter.com/search?q=" + text + search_location)
     }
   }
 }
