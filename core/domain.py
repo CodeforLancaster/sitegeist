@@ -8,13 +8,13 @@ Within this file are the bones of a basic Active Record style database API, whic
 users, tweets and subjects.
 """
 
-from datetime import datetime
 import math
 import numbers
 import os
 import re
 import sqlite3
 import time
+from datetime import datetime
 from enum import Enum
 
 
@@ -53,8 +53,10 @@ class Database:
     def setup(self):
         print('Creating database')
         self.connect()
-        schema = '%s %s %s' % (User.sql, Tweet.sql, Subject.sql)
-        self.conn.executescript(schema)
+
+        for ct in [User.sql, Tweet.sql, Subject.sql, SubjectSummary.sql]:
+            print('Executing: %s' % ct)
+            self.conn.executescript(ct)
 
     def recreate(self):
         self.__del__()
@@ -83,7 +85,12 @@ def commit_after(func):
     return decorator_func
 
 
-class Entity:
+class Serializable:
+    def to_dict(self):
+        return self.__dict__
+
+
+class Entity(Serializable):
     """
     Base class for all entities, abstracts the ID property and the database self reference.
     """
@@ -99,6 +106,11 @@ class Entity:
     @id.setter
     def id(self, id):
         self._id = id
+
+    def to_dict(self):
+        data = super(Entity, self).to_dict()
+        del data['db']
+        return data
 
 
 class User(Entity):
@@ -137,14 +149,14 @@ class SubjectType(Enum):
     ALL = -1
 
 
-class Subject:
+class Subject(Serializable):
     """
     Active record representing a tweet subject.
     """
 
     sql = '''CREATE TABLE IF NOT EXISTS subjects (subject text PRIMARY KEY NOT NULL, type INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS 
     tweet_subjects (tweet_id INTEGER, subject text, FOREIGN KEY (tweet_id) REFERENCES tweets(tweet_id), FOREIGN KEY (
-    subject) REFERENCES subjects(subject)) '''
+    subject) REFERENCES subjects(subject));'''
 
     def __init__(self, subject, subject_type: SubjectType, db=Database.instance):
         self.subject = subject
@@ -156,6 +168,36 @@ class Subject:
         if row is None:
             return None
         return Subject(subject=row[0], subject_type=SubjectType(int(row[1])))
+
+
+class SubjectSummary(Serializable):
+    """
+    Represents a summary of particular subject over 24 hours. This is used for maintaining records about trends over
+    time.
+    """
+
+    sql = '''CREATE TABLE IF NOT EXISTS subject_summaries (subject TEXT NOT NULL, day DATE NOT NULL, 
+    type INTEGER NOT NULL, num_tweets INTEGER NOT NULL, sum_sentiment REAL NOT NULL, avg_sentiment REAL NOT NULL, 
+    PRIMARY KEY (subject, day));'''
+
+    def __init__(self, subject, subject_type: SubjectType, num_tweets, sum_sentiment, avg_sentiment, day=datetime.now(),
+                 db=Database.instance):
+        self.subject = subject
+        self.db = db
+        self.subject_type = subject_type
+        self.num_tweets = num_tweets
+        self.sum_sentiment = sum_sentiment
+        self.avg_sentiment = avg_sentiment
+        self.day = day
+
+    @staticmethod
+    def map_subject_summary(row, user=None):
+        return SubjectSummary(row[0], SubjectType(row[2]), row[4], row[3], row[5], row[1])
+
+    def to_dict(self):
+        data = super(SubjectSummary, self).to_dict()
+        del data['db']
+        return data
 
 
 class Tweet(Entity):
@@ -278,8 +320,7 @@ class SubjectRepo:
     Repository class for subject-related database operations
     """
 
-    BASE_QUERY = '''SELECT s.subject, s.type, sum(t.sentiment) as sum, count(*) as total, avg(t.sentiment) as avg, 
-    (avg(t.sentiment) + 2) / 4 as scaled_avg
+    BASE_QUERY = '''SELECT s.subject, s.type, sum(t.sentiment) as sum, count(*) as total, avg(t.sentiment) as avg
         FROM tweet_subjects ts 
         LEFT JOIN tweets t ON ts.tweet_id = t.id 
         LEFT JOIN subjects s on ts.subject = s.subject
@@ -318,6 +359,50 @@ class SubjectRepo:
         c.execute(query +
                   " GROUP BY ts.subject ORDER BY total %s LIMIT %d" % (sort, n))
         return c.fetchall()
+
+    def summaries(self, days=7, limit=-1, sort='desc', at_least=1):
+        c = self.db.conn.cursor()
+        if not limit == -1:
+
+            # In this case, we grab the top 'n' of each subject over the specified period.
+            # SQLite doesn't have a nice native support for this sort of 'group by limit' query, so I just repeat
+            # several small queries and aggregate the results.
+
+            data = []
+
+            while days > 1:
+                q = """SELECT * from subject_summaries WHERE 
+                day >= date('now','-%d days') and day <= date('now', '-%d days') 
+                GROUP BY subject HAVING num_tweets > %d 
+                ORDER BY num_tweets %s LIMIT %d;""" % (days, days - 1, at_least, sort, limit)
+                c.execute(q)
+                data = data + [SubjectSummary.map_subject_summary(row) for row in c.fetchall()]
+                days = days - 1
+
+            return data
+        else:
+
+            # In the alternative case, we just dump everything from summaries. This could be a LOT of data.
+
+            q = """SELECT * from subject_summaries WHERE 
+                day >= date('now','-%d days')
+                GROUP BY subject HAVING num_tweets > %d 
+                ORDER BY num_tweets %s LIMIT %d""" % (days, at_least, sort, limit)
+
+            c.execute(q)
+            return [SubjectSummary.map_subject_summary(row) for row in c.fetchall()]
+
+    @commit_after
+    def archive_last_24h(self):
+        q = """INSERT INTO subject_summaries (subject, day, type, sum_sentiment, num_tweets, avg_sentiment) 
+        SELECT s.subject, date('now', '-1 day'), s.type, sum(t.sentiment) as sum, count(ts.subject) as total, avg(t.sentiment)
+        FROM tweet_subjects ts 
+        LEFT JOIN tweets t ON ts.tweet_id = t.id 
+        LEFT JOIN subjects s on ts.subject = s.subject
+        WHERE t.time >= date('now','-1 day') GROUP BY ts.subject HAVING total > 1 ORDER BY total DESC;"""
+
+        c = self.db.conn.cursor()
+        c.execute(q)
 
     def exists(self, subject: str):
         c = self.db.conn.cursor()

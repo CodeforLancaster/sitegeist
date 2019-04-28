@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 import threading
-import twitter
+
+import schedule
 import spacy
+import twitter
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from twitter import TwitterError
+
 from core.domain import *
 
 pos_include = ['NOUN', 'PROPN']
@@ -26,15 +29,31 @@ class TweetAnalyser:
         self.tweets = self.db.tweets
         self.subjects = self.db.subjects
 
+        schedule.every().day.at("00:00").do(self.job)
+
         self.api = twitter.Api(consumer_key=self.consumer_key,
                                consumer_secret=self.consumer_secret,
                                access_token_key=self.access_token_key,
                                access_token_secret=self.access_token_secret,
                                cache=None,
                                tweet_mode='extended')
+
+        jobs_thread = threading.Thread(target=self.schedule_daemon, args=())
+        jobs_thread.daemon = True
+        jobs_thread.start()
+
         thread = threading.Thread(target=self.run, args=())
         thread.daemon = True  # Daemonize thread
         thread.start()
+
+    def job(self):
+        self.subjects.archive_last_24h()
+
+    @staticmethod
+    def schedule_daemon(interval=1):
+        while True:
+            schedule.run_pending()
+            time.sleep(interval)
 
     def compute_sentiment(self, res):
         """
