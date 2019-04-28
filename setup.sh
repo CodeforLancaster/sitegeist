@@ -1,8 +1,26 @@
 #!/usr/bin/env bash
-pip3 install -r requirements.txt
-python3 -m spacy download en_core_web_sm
 
-python3 -c "
+{
+    python -V
+    PY=python
+} || {
+    PY=python3
+
+}
+
+{
+    pip -V
+    PIP=pip
+} || {
+    PIP=pip3
+
+}
+
+${PIP} install -r requirements.txt
+
+${PY} -m spacy download en_core_web_sm
+
+${PY} -c "
 import nltk
 nltk.download('vader_lexicon')
 "

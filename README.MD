@@ -17,3 +17,21 @@ For example:
 ```
 python3 main.py -g lat1 lon1 lat2 lon2 -t <consumer key> <consumer secret> <access token key> <access token secret>
 ```
+
+To create and setup venv for python:
+
+```{bash}
+./venv.sh
+```
+
+To activate venv:
+
+```{bash}
+source ./venv.sh
+```
+
+To deactivate venv:
+
+```
+deactivate
+```
