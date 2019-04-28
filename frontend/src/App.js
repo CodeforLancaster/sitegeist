@@ -12,7 +12,7 @@ class App extends Component {
         <Header/>
         <MapContainer/>
         <ChartContainer/>
-        <Info/>
+        {/* <Info/> */}
       </div>
     )
   }
