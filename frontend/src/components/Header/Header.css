@@ -1,4 +1,4 @@
-h1 {
+/* h1 {
   font-size: 32px;
   font-weight: 700;
 }
@@ -7,4 +7,14 @@ h2 {
   font-size: 16px;
   font-weight: normal;
   margin-bottom: 32px;
+} */
+
+header {
+  background-color: #d93933;
+  color: white;
+  padding: 16px;
+}
+
+header img {
+  width: 200px;
 }

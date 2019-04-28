@@ -1,12 +1,14 @@
 import React, { Component } from 'react'
 import './Header.css'
+import lancasterRose from '../../assets/lancaster-rose.png'
 
 class Header extends Component {
   render() {
     return (
       <header>
-        <h1><span role="img" aria-label="">👻</span> SiteGeist</h1>
-        <h2>Real-time analysis of the subjects generating the most positive and most negative reactions in a particular area, over the last 24 hours. Powered by AI.</h2>
+        <img alt="Lancaster Rose" src={lancasterRose}/>
+        <h1>Sentimental Lancaster</h1>
+        <p class="lead">Real time analysis of social media mood and sentiment in Lancaster, UK.</p>
       </header>
     )
   }

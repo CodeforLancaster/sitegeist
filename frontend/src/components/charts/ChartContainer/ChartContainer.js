@@ -1,7 +1,8 @@
 import React, { Component } from 'react'
 import { ResponsiveBarStyled } from '../BarChart/BarChart'
 import './ChartContainer.css'
-import { parse } from 'ipaddr.js';
+import { TabContent, Nav, NavItem, NavLink, Container, Row, Col } from 'reactstrap'
+import classnames from 'classnames'
 
 class ChartContainer extends Component {
 
@@ -14,13 +15,18 @@ class ChartContainer extends Component {
 
   constructor() {
     super()
-    this.handleChange = this.handleChange.bind(this)
+    // this.setSelected = this.setSelected.bind(this)
+    this.loadData(this.state.selectedOption)
   }
 
-  handleChange(event) {
-    const selected = event.target.id
-    this.setState({ selectedOption: selected })
-    fetch('http://localhost:5001/api/all/' + selected)
+  setSelected(option) {
+    this.setState({ selectedOption: option })
+    this.loadData(option)
+  }
+
+  loadData(option) {
+    console.log('Going to fetch', option)
+    fetch('/api/all/' + option)
       .then(res => res.json())
       .then(data => {
         console.log('Data loaded:', data)
@@ -53,27 +59,57 @@ class ChartContainer extends Component {
 
   render() {
     return (
-      <div>
-        <div id="selector" data-toggle="buttons" onChange={this.handleChange}>
-          <label>
-            <input type="radio" name="options" id="all" autoComplete="off" defaultChecked /> All
-          </label>
-          <label>
-            <input type="radio" name="options" id="word" autoComplete="off" /> Words
-          </label>
-          <label>
-            <input type="radio" name="options" id="hashtag" autoComplete="off" /> Hashtags
-          </label>
-          <label>
-            <input type="radio" name="options" id="mention" autoComplete="off" /> Mentions
-          </label>
-        </div>
-        <div className="chart-container">
-          <ResponsiveBarStyled name={'Negative'} data={this.state.bottom10}></ResponsiveBarStyled>
-          <ResponsiveBarStyled name={'Hot'} data={this.state.hot10}></ResponsiveBarStyled>
-          <ResponsiveBarStyled name={'Positive'} data={this.state.top10}></ResponsiveBarStyled>
-        </div>
-      </div>
+      <Container className="mt-2 mb-5">
+        <Nav tabs>
+          <NavItem>
+            <NavLink
+              className={classnames({ active: this.state.selectedOption === 'all' })}
+              onClick={() => { this.setSelected('all'); }}
+            >
+              All
+              </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink
+              className={classnames({ active: this.state.selectedOption === 'word' })}
+              onClick={() => { this.setSelected('word'); }}
+            >
+              Words
+              </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink
+              className={classnames({ active: this.state.selectedOption === 'hashtag' })}
+              onClick={() => { this.setSelected('hashtag'); }}
+            >
+              Hashtags
+              </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink
+              className={classnames({ active: this.state.selectedOption === 'mention' })}
+              onClick={() => { this.setSelected('mention'); }}
+            >
+              Mentions
+              </NavLink>
+          </NavItem>
+        </Nav>
+        <TabContent>
+          <Row className="mt-2">
+            <Col>
+              <ResponsiveBarStyled name={'Negative'} data={this.state.bottom10} color={'red_yellow_blue'}></ResponsiveBarStyled>
+            </Col>
+            <Col>
+              <ResponsiveBarStyled name={'Positive'} data={this.state.top10} color={'accent'}></ResponsiveBarStyled>
+            </Col>
+          </Row>
+          <Row className="mt-2">
+            <Col>
+              <ResponsiveBarStyled name={'Hot'} data={this.state.hot10} color={'category10'}></ResponsiveBarStyled>
+            </Col>
+          </Row>
+        </TabContent>
+      </Container>
     )
   }
 }

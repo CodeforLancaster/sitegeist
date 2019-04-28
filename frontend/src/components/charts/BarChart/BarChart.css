@@ -1,11 +1,10 @@
-.chart h2 {
-  font-size: 24px;
-  font-weight: 500;
-}
-
 .chart {
   height: 100%;
   width: 100%;
   border: 1px solid lightgray;
-  border-radius: 8px; 
+  border-radius: 8px;
+}
+
+.chart-container {
+  height: 500px;
 }
