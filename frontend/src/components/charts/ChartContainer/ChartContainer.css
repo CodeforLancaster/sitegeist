@@ -1,0 +1,8 @@
+.chart-container {
+  height:500px;
+}
+
+.chart-container > div {
+  display: inline-block;
+  width: 33%;
+}
