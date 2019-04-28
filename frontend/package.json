@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@nivo/bar": "^0.56.0",
     "leaflet": "^1.4.0",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",

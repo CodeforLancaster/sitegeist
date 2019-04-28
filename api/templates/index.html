@@ -62,7 +62,7 @@ function refresh() {
 function getData(callback){
 
   var route = 'api/all'
-  if (window.subj_type !== 'all' && window.subj_type !== undefined) {
+      if (window.subj_type !== 'all' && window.subj_type !== undefined) {
       route = "api/all/" + window.subj_type
   }
 
