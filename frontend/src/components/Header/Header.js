@@ -8,7 +8,7 @@ class Header extends Component {
       <header>
         <img alt="Lancaster Rose" src={lancasterRose}/>
         <h1>Sentimental Lancaster</h1>
-        <p class="lead">Real time analysis of social media mood and sentiment in Lancaster, UK.</p>
+        <p>Real time analysis of social media mood and sentiment in Lancaster, UK.</p>
       </header>
     )
   }

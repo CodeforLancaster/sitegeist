@@ -51,7 +51,7 @@ class ChartContainer extends Component {
     return data.map(topic => {
       return {
         topic: topic[0],
-        tweets: [1],
+        tweets: topic[1],
         sentiment: topic[2],
       }
     }).reverse()
