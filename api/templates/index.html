@@ -10,6 +10,8 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
             integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
             crossorigin="anonymous"></script>
+    <link href="https://fonts.googleapis.com/css?family=Exo+2" rel="stylesheet">
+    <link rel="icon" href="static/favicon.ico" type="image/x-icon"/>
     <!-- reference to Leaflet CSS -->
     <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css"/>
 
@@ -135,9 +137,34 @@ function drawChart() {
       getData();
     }
 
+    var options = {
+      colors: ['green'],
+      theme: 'material',
+      is3D:true,
+      hAxis: {
+        title: ''
+        },
+      legend:{position:'none'},
+};
+
     topChart.draw(window.dataTop, options); // google.charts.Bar.convertOptions(options));
+
+    var options = {
+      colors: ['blue'],
+      is3D:true,
+      legend:{position:'none'}
+};
+
+
     hotChart.draw(window.dataHot, options); // google.charts.Bar.convertOptions(options));
+
+    var options = {
+      colors: ['red'],
+      is3D:true,
+      legend:{position:'none'},
+};
     btmChart.draw(window.dataBtm, options); //  google.charts.Bar.convertOptions(options));
+
 }
 
     </script>
@@ -159,15 +186,20 @@ function drawChart() {
       margin:0 !important;
     }
 
+    .sitegeist {
+        font-family: 'Exo 2', sans-serif;
+        color: white;
+    }
+
     </style>
 </head>
-<title>SiteGeist</title>
+<title>Sentimental Lancaster</title>
 <body>
-<div class="d-flex flex-column flex-md-row align-items-center p-3 px-md-4 mb-3 bg-white border-bottom shadow-sm">
+<div style="background-color: #d93933;" class="d-flex flex-column flex-md-row align-items-center px-md-4 border-bottom shadow-sm">
     <div class="pricing-header px-3 py-3 pt-md-5 pb-md-4 mx-auto text-center">
-        <h1 class="display-4">👻 SiteGeist</h1>
-        <p class="lead">Real-time analysis of the subjects generating the most positive and most negative reactions in a
-            particular area, over the last 24 hours. Powered by AI.</p>
+        <img width="150px" src="/static/lancaster-rose.png"/>
+        <h1 class="sitegeist">sitegeist</h1>
+        <p style="color:#ffffff" class="lead">A realtime visualisation of social media mood and sentiment in Lancaster, UK.</p>
     </div>
 </div>
 
@@ -194,10 +226,10 @@ function drawChart() {
     </div>
     <div class="row">
         <div class="clearfix"></div>
-        <div class="col-md-4 mb-4">
+        <div class="col-md-6 mb-4">
             <div class="card">
-                <div class="card-header text-center">
-                    <h4 class="my-0 font-weight-normal">Negative</h4>
+                <div class="card-header text-center negative">
+                    <h4 class="my-0 font-weight-normal">👎 Negative --</h4>
                 </div>
                 <div class="card-body text-center">
                     <div class="spinner-grow text-primary d-none" role="status">
@@ -207,23 +239,10 @@ function drawChart() {
                 </div>
             </div>
         </div>
-        <div class="col-md-4 mb-4">
+        <div class="col-md-6 mb-4">
             <div class="card">
                 <div class="card-header text-center">
-                    <h4 class="my-0 font-weight-normal">Hot</h4>
-                </div>
-                <div class="card-body text-center">
-                    <div class="spinner-grow text-primary d-none" role="status">
-                        <span class="sr-only">Loading...</span>
-                    </div>
-                    <div id="hotChart" class="chart"></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-4">
-            <div class="card">
-                <div class="card-header text-center">
-                    <h4 class="my-0 font-weight-normal">Positive</h4>
+                    <h4 class="my-0 font-weight-normal positive">👍 Positive ++</h4>
                 </div>
                 <div class="card-body text-center">
                     <div class="spinner-grow text-primary d-none" role="status">
@@ -234,6 +253,25 @@ function drawChart() {
             </div>
         </div>
     </div>
+    <div class="row">
+        <div class="clearfix"></div>
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header text-center">
+                    <h4 class="my-0 font-weight-normal">🎉 Most Popular 🎉</h4>
+                </div>
+                <div class="card-body text-center">
+                    <div class="spinner-grow text-primary d-none" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                    <div id="hotChart" class="chart"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <style>
+
+    </style>
     <script>
 
     $.getJSON('/api/loc', function(loc) {
@@ -251,7 +289,7 @@ function drawChart() {
         }).addTo(map);
 
         // add rectangle passing bounds and some basic styles
-        L.rectangle(loc, {color: "blue", weight: 1}).addTo(map);
+        L.rectangle(loc, {color: "red", weight: 1}).addTo(map);
 
 
 
@@ -266,13 +304,65 @@ function drawChart() {
     </script>
 </div>
 
-<div class="pricing-header px-3 py-3 pt-md-5 pb-md-4 mx-auto text-center">
-    <h1 class="display-3">How it works</h1>
+<div class="pricing-header px-3 py-3 pt-md-5 pb-md-4 mx-auto text-left container">
+    <div class="row">
+        <div class="col-md-12">
+            <h1 class="display-3 text-center mb-5">What's the point?</h1>
+        </div>
+        <div class="col-md-6">
+            <p>
+                We brought this project to life because we wanted a way to aggregate the mood and feeling of the people of Lancaster and display this back to people in a constructive and interesting way. More and more people are turning to social media to voice their concerns and issues with society, politics, and life in general. We thought it would be an excellent idea to show the things that people are unhappy (and happy) about in Lancaster and the surrounding area, just in case we notice anything interesting as time passes.
+            </p>
+            <p>
+                The graphs above show the public sentiment on Twitter over the last 24 hours. From this you may be able guage if there is some amazing event going on in Lancaster that you didn't know about, or if your neighbours aren't happy about the amount of traffic, or even if there is a massive issue that is dividing local opinion.
+            </p>
+            <p>
+                Over time we hope to build out this project and display even more interesting graphs and data analysis that will hopefully become useful for the city of Lancaster to reflect, think carefully, and to be its best self #smile.
+            </p>
+        </div>
+        <div class="col-md-6">
+            <img width="100%" src="/static/lancaster.jpg" />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-12">
+            <h1 class="display-3 text-center mb-5">How it works</h1>
+        </div>
+        <div class="col-md-6">
+            <h2>Sourcing from social media</h2>
+            <p>
+                In order to analyse the mood and sentiment in Lancaster we have setup a system that applies a geofence around the Lancaster area and uses social media apis to retrieve user posts. The social posts that originate from within this geofenced area are then subjected to natural language processing to determine if they are positive or negative in sentiment. Further analysis is done to highlight what people are posting about by entitiy, hashtag, and the other users they mention. At the moment we only retrieve data from Twitter.
+            </p>
+        </div>
+        <div class="col-md-6">
+            <h2>Natural language processing</h2>
+            <p>
+                Natural language processing (NLP) is a subfield of computer science, information engineering, and artificial intelligence concerned with the interactions between computers and human (natural) languages, in particular how to program computers to process and analyze large amounts of natural language data. We use NLP to determine whether social posts are positive or negative in sentiment and to group posts together by general themes or words.
+            </p>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-12">
+            <h1 class="display-3 text-center mb-5">How to help</h1>
+        </div>
+        <div class="col-md-6">
+            <h2>Do some coding</h2>
+            <p>
+                You can find this project hosted on <a href="https://github.com/CodeforLancaster/sitegeist" target="_blank">Github</a>. You are free to clone or fork this project or contribute directly by submitting a pull request.
+            </p>
+        </div>
+        <div class="col-md-6">
+            <h2>Join Code for Lancaster</h2>
+            <p>
+                <a href="https://codeforlancaster.org" target="_blank">Code for Lancaster</a> is a volunteer Civic Technology meetup. We were inspired by <a href="https://codeforlancaster.org" target="_blank">Code for Boston</a>, and are made up of volunteer developers, designers, data geeks, citizen activists, and many others who look to use creative technology to solve civic and social problems.
+            </p>
+        </div>
+    </div>
 </div>
 
 <footer class="pt-4 my-md-5 pt-md-5 border-top">
-    <div class="row">
-        <small class="text-center text-muted">© Sourcepulp 2019</small>
+    <div class="container text-center">
+        <small class="text-muted">© Code for Lancaster 2019</small>
     </div>
 </footer>
 </body>
