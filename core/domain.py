@@ -224,14 +224,6 @@ class Tweet(Entity):
         self.tweet = tweet
         self.sentiment = sentiment
         self.time = time
-        self.hash_re = re.compile(r'\s([#][\w_-]+)')
-        self.mention_re = re.compile(r'\s([@][\w_-]+)')
-
-    def hashtags_and_mentions(self):
-        hashtags = self.hash_re.findall(self.tweet)
-        mentions = self.mention_re.findall(self.tweet)
-
-        return hashtags, mentions
 
     @staticmethod
     def time_to_str(ts=time.time()):

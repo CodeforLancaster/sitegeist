@@ -1,5 +1,6 @@
 [
     "today",
+    "tonight",
     "monday",
     "tuesday",
     "wednesday",
@@ -13,7 +14,15 @@
     "afternoon",
 
     "something",
+    "anything",
+    "everyone",
     "thing",
+    "people",
 
-    "amp"
+    "amp",
+    "bit",
+    "lot",
+
+    "one",
+    "first"
 ]
