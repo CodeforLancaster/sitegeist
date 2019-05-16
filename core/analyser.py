@@ -192,10 +192,10 @@ class TweetAnalyser:
         entities = [e.text.strip() for e in res.ents if (len(e.text.strip()) > 1) & ('http' not in e.text.strip())]
         print('Entities: {}'.format(entities))
         phrases = [c.text.strip() for c in res.noun_chunks if
-                  (c.text.strip() not in entities) &
-                  (len(c.text.strip()) > 1) &
-                  (c.root.pos_ in pos_include) &
-                  ('http' not in c.text.strip())]
+                   (c.text.strip() not in entities) &
+                   (len(c.text.strip()) > 1) &
+                   (c.root.pos_ in pos_include) &
+                   ('http' not in c.text.strip())]
         print('Phrases: {}'.format(phrases))
         for entity in entities:
             if entity.startswith('#') or entity.startswith('@'):
