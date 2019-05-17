@@ -230,7 +230,7 @@ class TweetAnalyser:
         words = []
         for t in text:
             tl = t.text.lower()
-            if (t.tag_ in self.include_word_pos) & (tl not in self.exclude_tokens):
+            if (t.tag_ in self.include_word_pos) & (tl not in self.exclude_tokens) & (len(tl) > 1):
                 if tl.startswith('#') or tl.startswith('@'):
                     continue
                 words.append(tl)
