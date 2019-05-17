@@ -146,6 +146,7 @@ class SubjectType(Enum):
     HASHTAG = 1
     MENTION = 2
     PHRASE = 3
+    WORD = 4
     ALL = -1
 
 

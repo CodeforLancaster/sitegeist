@@ -53,6 +53,12 @@ class TweetAnalyser:
         with open('./core/nlp_utils/exclude_tokens.json', 'r', encoding='utf-8') as f:
             self.exclude_tokens = json.loads(f.read())
             f.close()
+        with open('./core/nlp_utils/include_word_pos.json', 'r', encoding='utf-8') as f:
+            self.include_word_pos = json.loads(f.read())
+            f.close()
+        with open('./core/nlp_utils/include_entity_types.json', 'r', encoding='utf-8') as f:
+            self.include_entity_types = json.loads(f.read())
+            f.close()
 
     def job(self):
         self.subjects.archive_last_24h()
@@ -197,7 +203,7 @@ class TweetAnalyser:
     def extract_entities(self, text):
         entities = []
         for e in text.ents:
-            if (len(e.text) > 1) & ('http' not in e.text.lower()) & (e.root.text.lower() not in self.exclude_tokens):
+            if (len(e.text) > 1) & ('http' not in e.text.lower()) & (e.label_ in self.include_entity_types):
                 if e.text.startswith('#') or e.text.startswith('@'):
                     continue
                 entities.append(e.text.strip())
@@ -209,28 +215,40 @@ class TweetAnalyser:
             cht = ch.text.strip()
             if (len(cht) > 1) & (ch.root.tag_ in self.include_phrase_pos) & ('http' not in cht) & (
                     ch.root.text.lower() not in self.exclude_tokens):
-                if cht.startswith('#') or cht.startswith('@'):
+                if cht.startswith('#') or cht.startswith('@') or (len(cht.split()) == 1):
                     continue
-                phrases.append(ch.text.strip())
+                phrases.append(cht.lower())
         return phrases
 
     def hashtags_and_mentions(self, text):
         hashtags = self.hash_re.findall(text.text)
         mentions = self.mention_re.findall(text.text)
-
         return hashtags, mentions
 
+    def extract_words(self, text):
+        words = []
+        for t in text:
+            tl = t.text.lower()
+            if (t.tag_ in self.include_word_pos) & (tl not in self.exclude_tokens):
+                if tl.startswith('#') or tl.startswith('@'):
+                    continue
+                words.append(tl)
+        return words
+
     def extract_subjects(self, res, tweet):
-        entities = self.extract_entities(res)
-        phrases = [p for p in self.extract_phrases(res) if p not in entities]
         hashtags, mentions = self.hashtags_and_mentions(res)
+        entities = self.extract_entities(res)
+        words = self.extract_words(res)
+        phrases = [p for p in self.extract_phrases(res) if p not in entities]
 
         print('\tEntities: {}'.format(entities))
+        print('\tWords: {}'.format(words))
         print('\tPhrases: {}'.format(phrases))
         print('\tHashtags: {}'.format(hashtags))
         print('\tMentions: {}\n'.format(mentions))
 
         [self.subjects.create(entity, tweet, SubjectType.ENTITY) for entity in entities]
+        [self.subjects.create(word, tweet, SubjectType.WORD) for word in words]
         [self.subjects.create(hashtag, tweet, SubjectType.HASHTAG) for hashtag in hashtags]
         [self.subjects.create(mention, tweet, SubjectType.MENTION) for mention in mentions]
         [self.subjects.create(phrase, tweet, SubjectType.PHRASE) for phrase in phrases]
