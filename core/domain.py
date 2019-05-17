@@ -147,6 +147,7 @@ class SubjectType(Enum):
     MENTION = 2
     PHRASE = 3
     WORD = 4
+    EMOJI = 5
     ALL = -1
 
 

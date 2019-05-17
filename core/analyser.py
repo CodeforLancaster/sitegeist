@@ -4,6 +4,7 @@ import json
 import schedule
 import spacy
 import twitter
+import emoji
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from twitter import TwitterError
 
@@ -235,20 +236,26 @@ class TweetAnalyser:
                 words.append(tl)
         return words
 
+    def extract_emojis(self, text):
+        return [d['emoji'] for d in emoji.emoji_lis(text.text)]
+
     def extract_subjects(self, res, tweet):
+        emojis = self.extract_emojis(res)
         hashtags, mentions = self.hashtags_and_mentions(res)
         entities = self.extract_entities(res)
-        words = self.extract_words(res)
+        words = [w for w in self.extract_words(res) if w not in emojis + entities]
         phrases = [p for p in self.extract_phrases(res) if p not in entities]
 
         print('\tEntities: {}'.format(entities))
         print('\tWords: {}'.format(words))
+        print('\tEmojis: {}'.format(emojis))
         print('\tPhrases: {}'.format(phrases))
         print('\tHashtags: {}'.format(hashtags))
         print('\tMentions: {}\n'.format(mentions))
 
         [self.subjects.create(entity, tweet, SubjectType.ENTITY) for entity in entities]
         [self.subjects.create(word, tweet, SubjectType.WORD) for word in words]
+        [self.subjects.create(emoji, tweet, SubjectType.EMOJI) for emoji in emojis]
         [self.subjects.create(hashtag, tweet, SubjectType.HASHTAG) for hashtag in hashtags]
         [self.subjects.create(mention, tweet, SubjectType.MENTION) for mention in mentions]
         [self.subjects.create(phrase, tweet, SubjectType.PHRASE) for phrase in phrases]
