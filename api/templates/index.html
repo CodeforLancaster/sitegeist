@@ -28,6 +28,7 @@ var btmChart;
 var top10avg;
 var btm10avg;
 var hot10avg;
+var trend10avg;
 var handle;
 var loc;
 var options = {
@@ -78,14 +79,19 @@ function getData(callback){
         hot10avg = t10b10.hot10.map(function(row) {
           return [ row[0], row[2],  row[0], row[0] + "\n" + row[3].toString() + ' tweets, sentiment ' + row[2] ]
         })
+        trend10avg = t10b10.trend10.map(function(row) {
+          return [ row[0], row[2],  row[0], row[0] + "\n" + row[3].toString() + ' tweets, sentiment ' + row[2] ]
+        })
 
         top10avg.unshift(['Subject', 'Score', { role: 'annotation' }, { role: 'tooltip' }])
         btm10avg.unshift(['Subject', 'Score', { role: 'annotation' }, { role: 'tooltip' }])
         hot10avg.unshift(['Subject', 'Score', { role: 'annotation' }, { role: 'tooltip' }])
+        trend10avg.unshift(['Subject', 'Score', { role: 'annotation' }, { role: 'tooltip' }])
 
         window.dataTop = new google.visualization.arrayToDataTable(top10avg);
         window.dataHot = new google.visualization.arrayToDataTable(hot10avg);
         window.dataBtm = new google.visualization.arrayToDataTable(btm10avg);
+        window.dataTrend = new google.visualization.arrayToDataTable(trend10avg);
 
         if(callback !== undefined) {
             callback()
@@ -100,6 +106,7 @@ function init() {
     topChart = new google.visualization.BarChart(document.getElementById('topChart'));
     hotChart = new google.visualization.BarChart(document.getElementById('hotChart'));
     btmChart = new google.visualization.BarChart(document.getElementById('btmChart'));
+    trendChart = new google.visualization.BarChart(document.getElementById('trendChart'));
 
     refresh();
 
@@ -111,6 +118,9 @@ function init() {
     });
     google.visualization.events.addListener(hotChart, 'click', function(e) {
         clickHandler(e, hot10avg)
+    });
+    google.visualization.events.addListener(trendChart, 'click', function(e) {
+        clickHandler(e, trend10avg)
     });
 
 }
@@ -158,6 +168,13 @@ function drawChart() {
 
     hotChart.draw(window.dataHot, options); // google.charts.Bar.convertOptions(options));
 
+    var options = {
+      colors: ['orange'],
+      is3D:true,
+      legend:{position:'none'}
+};
+
+    trendChart.draw(window.dataTrend, options); // google.charts.Bar.convertOptions(options));
     var options = {
       colors: ['red'],
       is3D:true,
@@ -255,7 +272,7 @@ function drawChart() {
     </div>
     <div class="row">
         <div class="clearfix"></div>
-        <div class="col-md-12 mb-4">
+        <div class="col-md-6 mb-4">
             <div class="card">
                 <div class="card-header text-center">
                     <h4 class="my-0 font-weight-normal">🎉 Most Popular 🎉</h4>
@@ -265,6 +282,20 @@ function drawChart() {
                         <span class="sr-only">Loading...</span>
                     </div>
                     <div id="hotChart" class="chart"></div>
+                </div>
+            </div>
+        </div>
+        <div class="clearfix"></div>
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header text-center">
+                    <h4 class="my-0 font-weight-normal">🔥 Trending 🔥</h4>
+                </div>
+                <div class="card-body text-center">
+                    <div class="spinner-grow text-primary d-none" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                    <div id="trendChart" class="chart"></div>
                 </div>
             </div>
         </div>

@@ -18,6 +18,26 @@ from datetime import datetime
 from enum import Enum
 
 
+class StdevFunc:
+    def __init__(self):
+        self.M = 0.0
+        self.S = 0.0
+        self.k = 1
+
+    def step(self, value):
+        if value is None:
+            return
+        tM = self.M
+        self.M += (value - tM) / self.k
+        self.S += (value - tM) * (value - self.M)
+        self.k += 1
+
+    def finalize(self):
+        if self.k < 3:
+            return None
+        return math.sqrt(self.S / (self.k-2))
+
+
 class Database:
     """
     Wrapper class for the SQLite database. Abstracts connection, creation and bootstrapping of the repository classes.
@@ -45,6 +65,7 @@ class Database:
 
     def connect(self):
         self.conn = sqlite3.connect(self.path, check_same_thread=False, isolation_level=None)
+        self.conn.create_aggregate("stdev", 1, StdevFunc)
         self.conn.execute('pragma journal_mode=wal')
         self.users = UserRepo(self)
         self.tweets = TweetRepo(self)
@@ -358,6 +379,46 @@ class SubjectRepo:
 
         c.execute(query +
                   " GROUP BY ts.subject ORDER BY total %s LIMIT %d" % (sort, n))
+        return c.fetchall()
+
+    def trend(self, n=10, sort='asc', subj_type=SubjectType.ALL, trend_time=1):
+        c = self.db.conn.cursor()
+        subj = ''
+        if subj_type != SubjectType.ALL:
+            subj = '''AND s.type IS {}'''.format(subj_type.value)
+
+        query = '''SELECT subject, type, sumSent, cnt, avgSent, (cnt  - mean) / std as zScore
+                        FROM (
+                            SELECT subject, type, AVG(cnt) AS mean, STDEV(cnt) as std, sumSent, avgSent, cnt, timeSep
+                                FROM (
+                                    SELECT
+                                        s.subject, 
+                                        s.type, 
+                                        SUM(t.sentiment) AS sumSent, 
+                                        COUNT(*) as cnt, 
+                                        AVG(t.sentiment) AS avgSent,
+                                        strftime('%H', time) as hourTime,
+                                        CASE 
+                                            WHEN DATETIME(time) >= DATETIME('now', '-{} hour')
+                                            THEN 'NOW'
+                                            ELSE 'BEFORE'
+                                            END AS timeSep
+
+                                    FROM tweet_subjects as ts
+                                    LEFT JOIN tweets t ON ts.tweet_id = t.id 
+                                    LEFT JOIN subjects s on ts.subject = s.subject
+                                    WHERE t.time >= date('now','-1 day')
+                                    {}
+                                    GROUP BY s.subject, hourTime
+                                    )
+                                GROUP BY subject, timeSep
+                                )
+                        WHERE timeSep IS 'NOW' AND (zScore > 0 OR zScore IS NULL)
+                        ORDER BY zScore {}, cnt {}
+                        LIMIT {}
+                    '''.format(trend_time, subj, sort, sort, n)
+
+        c.execute(query)
         return c.fetchall()
 
     def summaries(self, days=7, limit=-1, sort='desc', at_least=1):
