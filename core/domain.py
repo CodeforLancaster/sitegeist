@@ -11,7 +11,6 @@ users, tweets and subjects.
 import math
 import numbers
 import os
-import re
 import sqlite3
 import time
 from datetime import datetime
