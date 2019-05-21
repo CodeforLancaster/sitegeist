@@ -31,7 +31,7 @@ def start(db, ta):
 
     FlaskInjector(app=app, modules=[module], )
 
-    app.run('localhost', port=5001)
+    app.run('0.0.0.0', port=5001)
 
     thread = threading.Thread(target=start, args=())
     thread.daemon = True  # Daemonize thread

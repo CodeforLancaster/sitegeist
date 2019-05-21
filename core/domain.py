@@ -24,7 +24,7 @@ class Database:
     """
     instance = None
 
-    def __init__(self, path='tweets.db'):
+    def __init__(self, path='data/tweets.db'):
         self.path = path
         self.users = None
         self.tweets = None
