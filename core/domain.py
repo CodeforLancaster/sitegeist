@@ -14,6 +14,7 @@ import os
 import re
 import sqlite3
 import time
+import pandas as pd
 from datetime import datetime
 from enum import Enum
 
@@ -369,6 +370,57 @@ class SubjectRepo:
         c.execute(query +
                   " GROUP BY ts.subject ORDER BY sum %s, total %s LIMIT %d" % (sort, sort, n))
         return c.fetchall()
+
+    def trend(self, n=10, sort='asc', subj_type=SubjectType.ALL, trend_time=1):
+        c = self.db.conn.cursor()
+        subj = ''
+        if subj_type != SubjectType.ALL:
+            subj = '''AND s.type IS {}'''.format(subj_type.value)
+
+        query = ''' 
+                SELECT subject, type, SUM(sumSent) as sumSent, SUM(cnt) AS cnt, AVG(avgSent) as avgSent, AVG(cnt) AS mean, STDEV(cnt) as std, timeSep
+                    FROM (
+                        SELECT
+                            s.subject, s.type, SUM(t.sentiment) AS sumSent, COUNT(*) as cnt, AVG(t.sentiment) AS avgSent,
+                            CASE 
+                                WHEN DATETIME(time) >= DATETIME('now', '-{} hour')
+                                THEN 'NOW'
+                                ELSE 'BEFORE'
+                                END AS timeSep
+                        FROM tweet_subjects as ts
+                        LEFT JOIN tweets t ON ts.tweet_id = t.id 
+                        LEFT JOIN subjects s ON ts.subject = s.subject
+                        WHERE t.time >= date('now','-1 day') {} 
+                        GROUP BY s.subject, strftime('%s', time) / {}
+                        ) query
+                    WHERE query.subject IN (
+                        SELECT subject FROM (
+                            SELECT
+                                s.subject,
+                                CASE 
+                                    WHEN DATETIME(time) >= DATETIME('now', '-{} hour')
+                                    THEN 'NOW'
+                                    ELSE 'BEFORE'
+                                    END AS timeSep
+                            FROM tweet_subjects as ts
+                            LEFT JOIN tweets t ON ts.tweet_id = t.id 
+                            LEFT JOIN subjects s ON ts.subject = s.subject
+                        WHERE t.time >= date('now','-1 day') {} AND timeSep is 'NOW' 
+                        GROUP BY s.subject, strftime('%s', time) / {}
+                        ) 
+                        )
+                    GROUP BY subject, timeSep
+                    '''.format(trend_time, subj, trend_time * 3600, trend_time, subj, trend_time * 3600)
+        c.execute(query)
+        tnd = pd.DataFrame(c.fetchall(), columns=['s', 'ty', 'sSt', 'c', 'aSt', 'm', 'std', 't'])
+        tnd = pd.merge(
+            tnd[['s', 'ty', 'sSt', 'c', 'aSt']].loc[tnd.t == 'NOW'],
+            tnd[['s', 'm', 'std']].loc[tnd.t == 'BEFORE'],
+            on='s'
+        ).fillna(0)
+        tnd['z'] = ((tnd['c'] + 1) - (tnd['m'] + 1)) / (tnd['std'] + 1)
+        tnd = tnd.sort_values(by=['z', 'c'], ascending=False)[['s', 'ty', 'sSt', 'c', 'aSt', 'z']].values[:n]
+        return [tuple(t) for t in tnd]
 
     def hot(self, n=10, sort='asc', subj_type=SubjectType.ALL):
         c = self.db.conn.cursor()
