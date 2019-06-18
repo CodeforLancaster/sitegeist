@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
+import re
 import threading
-
+import json
 import schedule
 import spacy
 import twitter
+import emoji
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from twitter import TwitterError
 
 from core.domain import *
-
-pos_include = ['NOUN', 'PROPN']
 
 
 class TweetAnalyser:
@@ -24,11 +24,13 @@ class TweetAnalyser:
         self.nlp = spacy.load("en_core_web_sm")
         self.sentiment = SentimentIntensityAnalyzer()
         self.url_re = re.compile(r'http\S+')
+        self.hash_re = re.compile(r'\s([#][\w_-]+)')
+        self.mention_re = re.compile(r'\s([@][\w_-]+)')
         self.db = Database()
         self.users = self.db.users
         self.tweets = self.db.tweets
         self.subjects = self.db.subjects
-
+        self._load_lists()
         schedule.every().day.at("00:00").do(self.job)
 
         self.api = twitter.Api(consumer_key=self.consumer_key,
@@ -46,6 +48,20 @@ class TweetAnalyser:
         thread.daemon = True  # Daemonize thread
         thread.start()
 
+    def _load_lists(self):
+        with open('./core/nlp_utils/include_phrase_pos.json', 'r', encoding='utf-8') as f:
+            self.include_phrase_pos = json.loads(f.read())
+            f.close()
+        with open('./core/nlp_utils/exclude_tokens.json', 'r', encoding='utf-8') as f:
+            self.exclude_tokens = json.loads(f.read())
+            f.close()
+        with open('./core/nlp_utils/include_word_pos.json', 'r', encoding='utf-8') as f:
+            self.include_word_pos = json.loads(f.read())
+            f.close()
+        with open('./core/nlp_utils/include_entity_types.json', 'r', encoding='utf-8') as f:
+            self.include_entity_types = json.loads(f.read())
+            f.close()
+
     def job(self):
         self.subjects.archive_last_24h()
 
@@ -57,7 +73,6 @@ class TweetAnalyser:
 
     def compute_sentiment(self, res):
         """
-        TODO This could be a bit more nuanced. Rework later. Workaround to fit current metric
         :param res:
         :return:
         """
@@ -81,27 +96,27 @@ class TweetAnalyser:
         # Try for extended text of original tweet, if RT'd (streamer)
         try:
             text = tweet['retweeted_status']['extended_tweet']['full_text']
-        except:
+        except KeyError:
             # Try for extended text of an original tweet, if RT'd (REST API)
             try:
                 text = tweet['retweeted_status']['full_text']
-            except:
+            except KeyError:
                 # Try for extended text of an original tweet (streamer)
                 try:
                     text = tweet['extended_tweet']['full_text']
-                except:
+                except KeyError:
                     # Try for extended text of an original tweet (REST API)
                     try:
                         text = tweet['full_text']
-                    except:
+                    except KeyError:
                         # Try for basic text of original tweet if RT'd
                         try:
                             text = tweet['retweeted_status']['text']
-                        except:
+                        except KeyError:
                             # Try for basic text of an original tweet
                             try:
                                 text = tweet['text']
-                            except:
+                            except KeyError:
                                 # Nothing left to check for
                                 text = ''
         return text
@@ -138,7 +153,6 @@ class TweetAnalyser:
         try:
             tid = tweet['quoted_status_id'] if tweet['is_quote_status'] else tweet['in_reply_to_status_id']
 
-            tp = None
             if not self.tweets.exists(tid):
                 parent = self.api.GetStatus(status_id=tid)
 
@@ -188,22 +202,61 @@ class TweetAnalyser:
 
         return self.nlp(text)
 
+    def extract_entities(self, text):
+        entities = []
+        for e in text.ents:
+            if (len(e.text) > 1) & ('http' not in e.text.lower()) & (e.label_ in self.include_entity_types):
+                if e.text.startswith('#') or e.text.startswith('@'):
+                    continue
+                entities.append(e.text.strip())
+        return entities
+
+    def extract_phrases(self, text):
+        phrases = []
+        for ch in text.noun_chunks:
+            cht = ch.text.strip()
+            if (len(cht) > 1) & (ch.root.tag_ in self.include_phrase_pos) & ('http' not in cht) & (
+                    ch.root.text.lower() not in self.exclude_tokens):
+                if cht.startswith('#') or cht.startswith('@') or (len(cht.split()) == 1):
+                    continue
+                phrases.append(cht.lower())
+        return phrases
+
+    def hashtags_and_mentions(self, text):
+        hashtags = self.hash_re.findall(text.text)
+        mentions = self.mention_re.findall(text.text)
+        return hashtags, mentions
+
+    def extract_words(self, text):
+        words = []
+        for t in text:
+            tl = t.text.lower()
+            if (t.tag_ in self.include_word_pos) & (tl not in self.exclude_tokens) & (len(tl) > 1):
+                if tl.startswith('#') or tl.startswith('@'):
+                    continue
+                words.append(tl)
+        return words
+
+    def extract_emojis(self, text):
+        return [d['emoji'] for d in emoji.emoji_lis(text.text)]
+
     def extract_subjects(self, res, tweet):
-        entities = [e.text.strip() for e in res.ents if (len(e.text.strip()) > 1) & ('http' not in e.text.strip())]
-        print('Entities: {}'.format(entities))
-        phrases = [c.text.strip() for c in res.noun_chunks if
-                  (c.text.strip() not in entities) &
-                  (len(c.text.strip()) > 1) &
-                  (c.root.pos_ in pos_include) &
-                  ('http' not in c.text.strip())]
-        print('Phrases: {}'.format(phrases))
-        for entity in entities:
-            if entity.startswith('#') or entity.startswith('@'):
-                continue
-            self.subjects.create(entity, tweet, SubjectType.ENTITY)
+        emojis = self.extract_emojis(res)
+        hashtags, mentions = self.hashtags_and_mentions(res)
+        entities = self.extract_entities(res)
+        words = [w for w in self.extract_words(res) if w not in emojis + entities]
+        phrases = [p for p in self.extract_phrases(res) if p not in entities]
 
-        hashtags, mentions = tweet.hashtags_and_mentions()
+        print('\tEntities: {}'.format(entities))
+        print('\tWords: {}'.format(words))
+        print('\tEmojis: {}'.format(emojis))
+        print('\tPhrases: {}'.format(phrases))
+        print('\tHashtags: {}'.format(hashtags))
+        print('\tMentions: {}\n'.format(mentions))
 
+        [self.subjects.create(entity, tweet, SubjectType.ENTITY) for entity in entities]
+        [self.subjects.create(word, tweet, SubjectType.WORD) for word in words]
+        [self.subjects.create(emoji, tweet, SubjectType.EMOJI) for emoji in emojis]
         [self.subjects.create(hashtag, tweet, SubjectType.HASHTAG) for hashtag in hashtags]
         [self.subjects.create(mention, tweet, SubjectType.MENTION) for mention in mentions]
         [self.subjects.create(phrase, tweet, SubjectType.PHRASE) for phrase in phrases]
