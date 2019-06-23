@@ -221,8 +221,10 @@ class TweetAnalyser:
         phrases = []
         for ch in text.noun_chunks:
             cht = ch.text.strip()
-            if (len(cht) > 1) & (ch.root.tag_ in self.include_phrase_pos) & ('http' not in cht) & (
-                    ch.root.text.lower() not in self.exclude_tokens):
+            if (len(cht.split()) > 1) & \
+                (ch.root.tag_ in self.include_phrase_pos) & \
+                ('http' not in cht) & \
+                (ch.root.text.lower() not in self.exclude_tokens):
                 if cht.startswith('#') or cht.startswith('@') or (len(cht.split()) == 1):
                     continue
                 phrases.append(cht.lower())
