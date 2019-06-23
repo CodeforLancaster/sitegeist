@@ -13,29 +13,8 @@ import numbers
 import os
 import sqlite3
 import time
-import pandas as pd
 from datetime import datetime
 from enum import Enum
-
-
-class StdevFunc:
-    def __init__(self):
-        self.M = 0.0
-        self.S = 0.0
-        self.k = 1
-
-    def step(self, value):
-        if value is None:
-            return
-        tM = self.M
-        self.M += (value - tM) / self.k
-        self.S += (value - tM) * (value - self.M)
-        self.k += 1
-
-    def finalize(self):
-        if self.k < 3:
-            return None
-        return math.sqrt(self.S / (self.k-2))
 
 
 class Database:
@@ -65,7 +44,6 @@ class Database:
 
     def connect(self):
         self.conn = sqlite3.connect(self.path, check_same_thread=False, isolation_level=None)
-        self.conn.create_aggregate("stdev", 1, StdevFunc)
         self.conn.execute('pragma journal_mode=wal')
         self.users = UserRepo(self)
         self.tweets = TweetRepo(self)
@@ -372,54 +350,25 @@ class SubjectRepo:
 
         query = '''
 
-                /* Gets the calculates stdev and mean counts */
-                SELECT subject, type, AVG(cnt) AS mean, STDEV(cnt) as std, sumSent, avgSent, cnt, timeSep
-                    FROM (
-                        /* Gets counts of terms w/ sentiment and groups by term and time*/
-                        SELECT
-                            s.subject,
-                            s.type,
-                            SUM(t.sentiment) AS sumSent,
-                            COUNT(*) as cnt,
-                            AVG(t.sentiment) AS avgSent,
-                            strftime('%H', time) as hourTime,
-                            /* Divides terms into now vs past */
-                            CASE
-                                WHEN DATETIME(time) >= DATETIME('now', '-{} hour')
-                                THEN 'NOW'
-                                ELSE 'BEFORE'
-                                END AS timeSep
-
-                        FROM tweet_subjects as ts
-                        LEFT JOIN tweets t ON ts.tweet_id = t.id
-                        LEFT JOIN subjects s on ts.subject = s.subject
-                        WHERE t.time >= date('now','-1 day')
-                        {}
-                        GROUP BY s.subject, hourTime
-                        )
-                    GROUP BY subject, timeSep
-
-                    '''.format(trend_time, subj, sort, sort)
+                SELECT
+                    s.subject,
+                    s.type,
+                    SUM(t.sentiment) AS sumSent,
+                    COUNT(*) as cnt,
+                    AVG(t.sentiment) AS avgSent
+                
+                FROM tweet_subjects as ts
+                LEFT JOIN tweets t ON ts.tweet_id = t.id
+                LEFT JOIN subjects s on ts.subject = s.subject
+                WHERE DATETIME(time) >= DATETIME('now', '-{} hour')
+                {}
+                GROUP BY s.subject
+                ORDER BY cnt {} 
+                LIMIT {}
+                    '''.format(trend_time, subj, sort, n)
         c.execute(query)
-        print(1)
         data = c.fetchall()
-        print(2)
-        tnd = pd.DataFrame(data, columns=['s', 'ty', 'm', 'std', 'sSt', 'aSt', 'c', 't'])
-        print(3)
-        now_s = tnd['s'].loc[tnd.t == 'NOW'].unique()
-        print(4)
-        tnd = pd.merge(
-            tnd[['s', 'ty', 'sSt', 'c', 'aSt']].loc[tnd.t == 'NOW'],
-            tnd[['s', 'm', 'std']].loc[(tnd['t'] == 'BEFORE') & (tnd['s'].isin(now_s))],
-            on='s'
-        ).fillna(0)
-        print(5)
-        tnd['z'] = ((tnd['c'] + 1) - (tnd['m'] + 1)) / (tnd['std'] + 1)
-        print(6)
-        tnd = tnd.sort_values(by=['z', 'c'], ascending=False)[['s', 'ty', 'sSt', 'c', 'aSt', 'z']].values[:n]
-        print('\nZ-SCORES?:\n{}\n'.format([tuple(t) for t in tnd]))
-        print(7)
-        return [tuple(t) for t in tnd]
+        return data
 
     def hot(self, n=10, sort='asc', subj_type=SubjectType.ALL):
         c = self.db.conn.cursor()

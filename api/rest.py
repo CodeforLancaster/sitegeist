@@ -32,7 +32,7 @@ def all_data(db: domain.Database, subj_type):
     t10 = subjects.top(10, 'desc', subj_type=subj_type)
     b10 = subjects.top(10, subj_type=subj_type)
     hot = subjects.hot(10, subj_type=subj_type, sort='desc')
-    trend = subjects.trend(10, subj_type=subj_type, sort='desc', trend_time=2)
+    trend = subjects.trend(10, subj_type=subj_type, sort='desc', trend_time=1)
 
     return js({'top10': t10, 'bottom10': b10, 'hot10': hot, 'trend10': trend})
 
