@@ -11,7 +11,6 @@ users, tweets and subjects.
 import math
 import numbers
 import os
-import re
 import sqlite3
 import time
 import pandas as pd
@@ -45,7 +44,7 @@ class Database:
     """
     instance = None
 
-    def __init__(self, path='tweets.db'):
+    def __init__(self, path='data/tweets.db'):
         self.path = path
         self.users = None
         self.tweets = None
@@ -168,6 +167,8 @@ class SubjectType(Enum):
     HASHTAG = 1
     MENTION = 2
     PHRASE = 3
+    WORD = 4
+    EMOJI = 5
     ALL = -1
 
 
@@ -246,14 +247,6 @@ class Tweet(Entity):
         self.tweet = tweet
         self.sentiment = sentiment
         self.time = time
-        self.hash_re = re.compile(r'\s([#][\w_-]+)')
-        self.mention_re = re.compile(r'\s([@][\w_-]+)')
-
-    def hashtags_and_mentions(self):
-        hashtags = self.hash_re.findall(self.tweet)
-        mentions = self.mention_re.findall(self.tweet)
-
-        return hashtags, mentions
 
     @staticmethod
     def time_to_str(ts=time.time()):
