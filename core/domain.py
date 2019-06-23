@@ -342,6 +342,34 @@ class SubjectRepo:
                   " GROUP BY ts.subject ORDER BY sum %s, total %s LIMIT %d" % (sort, sort, n))
         return c.fetchall()
 
+    def trend(self, n=10, sort='asc', subj_type=SubjectType.ALL, trend_time=1):
+        c = self.db.conn.cursor()
+        subj = ''
+        if subj_type != SubjectType.ALL:
+            subj = '''AND s.type IS {}'''.format(subj_type.value)
+
+        query = '''
+
+                SELECT
+                    s.subject,
+                    s.type,
+                    SUM(t.sentiment) AS sumSent,
+                    COUNT(*) as cnt,
+                    AVG(t.sentiment) AS avgSent
+                
+                FROM tweet_subjects as ts
+                LEFT JOIN tweets t ON ts.tweet_id = t.id
+                LEFT JOIN subjects s on ts.subject = s.subject
+                WHERE DATETIME(time) >= DATETIME('now', '-{} hour')
+                {}
+                GROUP BY s.subject
+                ORDER BY cnt {} 
+                LIMIT {}
+                    '''.format(trend_time, subj, sort, n)
+        c.execute(query)
+        data = c.fetchall()
+        return data
+
     def hot(self, n=10, sort='asc', subj_type=SubjectType.ALL):
         c = self.db.conn.cursor()
 
