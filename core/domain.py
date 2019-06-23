@@ -370,49 +370,55 @@ class SubjectRepo:
         if subj_type != SubjectType.ALL:
             subj = '''AND s.type IS {}'''.format(subj_type.value)
 
-        query = ''' 
-                SELECT subject, type, SUM(sumSent) as sumSent, SUM(cnt) AS cnt, AVG(avgSent) as avgSent, AVG(cnt) AS mean, STDEV(cnt) as std, timeSep
+        query = '''
+
+                /* Gets the calculates stdev and mean counts */
+                SELECT subject, type, AVG(cnt) AS mean, STDEV(cnt) as std, sumSent, avgSent, cnt, timeSep
                     FROM (
+                        /* Gets counts of terms w/ sentiment and groups by term and time*/
                         SELECT
-                            s.subject, s.type, SUM(t.sentiment) AS sumSent, COUNT(*) as cnt, AVG(t.sentiment) AS avgSent,
-                            CASE 
+                            s.subject,
+                            s.type,
+                            SUM(t.sentiment) AS sumSent,
+                            COUNT(*) as cnt,
+                            AVG(t.sentiment) AS avgSent,
+                            strftime('%H', time) as hourTime,
+                            /* Divides terms into now vs past */
+                            CASE
                                 WHEN DATETIME(time) >= DATETIME('now', '-{} hour')
                                 THEN 'NOW'
                                 ELSE 'BEFORE'
                                 END AS timeSep
+
                         FROM tweet_subjects as ts
-                        LEFT JOIN tweets t ON ts.tweet_id = t.id 
-                        LEFT JOIN subjects s ON ts.subject = s.subject
-                        WHERE t.time >= date('now','-1 day') {} 
-                        GROUP BY s.subject, strftime('%s', time) / {}
-                        ) query
-                    WHERE query.subject IN (
-                        SELECT subject FROM (
-                            SELECT
-                                s.subject,
-                                CASE 
-                                    WHEN DATETIME(time) >= DATETIME('now', '-{} hour')
-                                    THEN 'NOW'
-                                    ELSE 'BEFORE'
-                                    END AS timeSep
-                            FROM tweet_subjects as ts
-                            LEFT JOIN tweets t ON ts.tweet_id = t.id 
-                            LEFT JOIN subjects s ON ts.subject = s.subject
-                        WHERE t.time >= date('now','-1 day') {} AND timeSep is 'NOW' 
-                        GROUP BY s.subject, strftime('%s', time) / {}
-                        ) 
+                        LEFT JOIN tweets t ON ts.tweet_id = t.id
+                        LEFT JOIN subjects s on ts.subject = s.subject
+                        WHERE t.time >= date('now','-1 day')
+                        {}
+                        GROUP BY s.subject, hourTime
                         )
                     GROUP BY subject, timeSep
-                    '''.format(trend_time, subj, trend_time * 3600, trend_time, subj, trend_time * 3600)
+
+                    '''.format(trend_time, subj, sort, sort)
         c.execute(query)
-        tnd = pd.DataFrame(c.fetchall(), columns=['s', 'ty', 'sSt', 'c', 'aSt', 'm', 'std', 't'])
+        print(1)
+        data = c.fetchall()
+        print(2)
+        tnd = pd.DataFrame(data, columns=['s', 'ty', 'm', 'std', 'sSt', 'aSt', 'c', 't'])
+        print(3)
+        now_s = tnd['s'].loc[tnd.t == 'NOW'].unique()
+        print(4)
         tnd = pd.merge(
             tnd[['s', 'ty', 'sSt', 'c', 'aSt']].loc[tnd.t == 'NOW'],
-            tnd[['s', 'm', 'std']].loc[tnd.t == 'BEFORE'],
+            tnd[['s', 'm', 'std']].loc[(tnd['t'] == 'BEFORE') & (tnd['s'].isin(now_s))],
             on='s'
         ).fillna(0)
+        print(5)
         tnd['z'] = ((tnd['c'] + 1) - (tnd['m'] + 1)) / (tnd['std'] + 1)
+        print(6)
         tnd = tnd.sort_values(by=['z', 'c'], ascending=False)[['s', 'ty', 'sSt', 'c', 'aSt', 'z']].values[:n]
+        print('\nZ-SCORES?:\n{}\n'.format([tuple(t) for t in tnd]))
+        print(7)
         return [tuple(t) for t in tnd]
 
     def hot(self, n=10, sort='asc', subj_type=SubjectType.ALL):
@@ -424,46 +430,6 @@ class SubjectRepo:
 
         c.execute(query +
                   " GROUP BY ts.subject ORDER BY total %s LIMIT %d" % (sort, n))
-        return c.fetchall()
-
-    def trend(self, n=10, sort='asc', subj_type=SubjectType.ALL, trend_time=1):
-        c = self.db.conn.cursor()
-        subj = ''
-        if subj_type != SubjectType.ALL:
-            subj = '''AND s.type IS {}'''.format(subj_type.value)
-
-        query = '''SELECT subject, type, sumSent, cnt, avgSent, (cnt  - mean) / std as zScore
-                        FROM (
-                            SELECT subject, type, AVG(cnt) AS mean, STDEV(cnt) as std, sumSent, avgSent, cnt, timeSep
-                                FROM (
-                                    SELECT
-                                        s.subject, 
-                                        s.type, 
-                                        SUM(t.sentiment) AS sumSent, 
-                                        COUNT(*) as cnt, 
-                                        AVG(t.sentiment) AS avgSent,
-                                        strftime('%H', time) as hourTime,
-                                        CASE 
-                                            WHEN DATETIME(time) >= DATETIME('now', '-{} hour')
-                                            THEN 'NOW'
-                                            ELSE 'BEFORE'
-                                            END AS timeSep
-
-                                    FROM tweet_subjects as ts
-                                    LEFT JOIN tweets t ON ts.tweet_id = t.id 
-                                    LEFT JOIN subjects s on ts.subject = s.subject
-                                    WHERE t.time >= date('now','-1 day')
-                                    {}
-                                    GROUP BY s.subject, hourTime
-                                    )
-                                GROUP BY subject, timeSep
-                                )
-                        WHERE timeSep IS 'NOW' AND (zScore > 0 OR zScore IS NULL)
-                        ORDER BY zScore {}, cnt {}
-                        LIMIT {}
-                    '''.format(trend_time, subj, sort, sort, n)
-
-        c.execute(query)
         return c.fetchall()
 
     def summaries(self, days=7, limit=-1, sort='desc', at_least=1):
