@@ -176,19 +176,25 @@ class TweetAnalyser:
         return tweet
 
     def run(self):
-        for tweet in self.api.GetStreamFilter(locations=self.locations):
 
+        while True:
             try:
-                entity = self.process_tweet(tweet)
+                for tweet in self.api.GetStreamFilter(locations=self.locations):
+
+                    try:
+                        entity = self.process_tweet(tweet)
+                    except Exception as e:
+                        print(e)
+                        continue
+
+                    if entity is None:
+                        continue
+
+                    print('@' + entity.user.name + ': ' + self.get_text(tweet))
+                    print("Sentiment = %.2f" % entity.sentiment)
+
             except Exception as e:
                 print(e)
-                continue
-
-            if entity is None:
-                continue
-
-            print('@' + entity.user.name + ': ' + self.get_text(tweet))
-            print("Sentiment = %.2f" % entity.sentiment)
 
     def get_user(self, uname):
         if not self.users.exists(uname):
