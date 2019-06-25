@@ -193,7 +193,7 @@ class SubjectSummary(Serializable):
 
     @staticmethod
     def map_subject_summary(row, user=None):
-        return SubjectSummary(row[0], SubjectType(row[2]), row[4], row[3], row[5], row[1])
+        return SubjectSummary(row[0], SubjectType(row[2]), row[3], row[4], row[5], row[1])
 
     def to_dict(self):
         data = super(SubjectSummary, self).to_dict()
